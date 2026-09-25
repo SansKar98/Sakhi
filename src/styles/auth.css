@@ -1,0 +1,1091 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+    color: #fff;
+}
+
+:root {
+    --accent-primary: #00d4ff; /* blue (same blue used in other auth styles) */
+    --accent-secondary: #ff4d4f; /* red */
+}
+
+.auth-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f1429 0%, #1a2847 50%, #0f1429 100%);
+}
+
+.auth-container {
+    position: relative;
+    width: 750px;
+    height: 450px;
+    border: 2px solid var(--accent-primary);
+    box-shadow: 0 0 25px var(--accent-primary);
+    overflow: hidden;
+}
+
+.auth-container .form-box {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.form-box.Login {
+    left: 0;
+    padding: 0 40px;
+}
+
+.form-box.Login .animation {
+    transform: translateX(0%);
+    transition: .7s;
+    opacity: 1;
+    transition-delay: calc(.1s * var(--S));
+}
+
+.auth-container.active .form-box.Login .animation {
+    transform: translateX(-120%);
+    opacity: 0;
+    transition-delay: calc(.1s * var(--D));
+}
+
+.form-box.Register {
+    right: 0;
+    padding: 0 60px;
+}
+
+.form-box.Register .animation {
+    transform: translateX(120%);
+    transition: .7s ease;
+    opacity: 0;
+    filter: blur(10px);
+    transition-delay: calc(.1s * var(--S));
+}
+
+.auth-container.active .form-box.Register .animation {
+    transform: translateX(0%);
+    opacity: 1;
+    filter: blur(0px);
+    transition-delay: calc(.1s * var(--li));
+}
+
+.form-box h2 {
+    font-size: 32px;
+    text-align: center;
+    color: #fff;
+    margin: 0;
+}
+
+.form-box .input-box {
+    position: relative;
+    width: 100%;
+    height: 50px;
+    margin-top: 25px;
+}
+
+.input-box input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    color: #fff;
+    font-weight: 600;
+    border-bottom: 2px solid #fff;
+    padding-right: 23px;
+    transition: .5s;
+}
+
+.input-box input:focus,
+.input-box input:valid {
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.input-box label {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: #fff;
+    transition: .5s;
+}
+
+.input-box input:focus ~ label,
+.input-box input:valid ~ label {
+    top: -5px;
+    color: var(--accent-primary);
+}
+
+.input-box svg {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    font-size: 18px;
+    transform: translateY(-50%);
+    color: #fff;
+}
+
+.input-box input:focus ~ svg,
+.input-box input:valid ~ svg {
+    color: var(--accent-primary);
+}
+
+.btn {
+    position: relative;
+    width: 100%;
+    height: 45px;
+    background: transparent;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    border: 2px solid var(--accent-primary);
+    overflow: hidden;
+    z-index: 1;    
+}
+
+.btn::before {
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    background: linear-gradient(#0f1429, var(--accent-primary), #0f1429, var(--accent-secondary));
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: .5s;
+}
+
+.btn:hover::before {
+    top: 0;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.regi-link {
+    font-size: 14px;
+    text-align: center;
+    margin: 20px 0 10px;
+}
+
+.regi-link a {
+    text-decoration: none;
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+.regi-link a:hover {
+    text-decoration: underline;
+}
+
+.info-content {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 50%;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.info-content.Login {
+    right: 0;
+    text-align: right;
+    padding: 0 40px 60px 150px;
+}
+
+.info-content.Login .animation {
+    transform: translateX(0);
+    transition: .7s ease;
+    transition-delay: calc(.1s * var(--S));
+    opacity: 1;
+    filter: blur(0px);
+}
+
+.auth-container.active .info-content.Login .animation {
+    transform: translateX(120%);
+    opacity: 0;
+    filter: blur(10px);
+    transition-delay: calc(.1s * var(--D));
+}
+
+.info-content.Register {
+    left: 0;
+    text-align: left;
+    padding: 0 150px 60px 38px;
+    pointer-events: none;
+}
+
+.info-content.Register .animation {
+    transform: translateX(-120%);
+    transition: .7s ease;
+    opacity: 0;
+    filter: blur(10PX);
+    transition-delay: calc(.1s * var(--S));
+}
+
+.auth-container.active .info-content.Register .animation {
+    transform: translateX(0%);
+    opacity: 1;
+    filter: blur(0);
+    transition-delay: calc(.1s * var(--li));
+}
+
+.info-content h2 {
+    text-transform: uppercase;
+    font-size: 36px;
+    line-height: 1.3;
+    margin: 0;
+    color: #000;
+}
+
+/* Left side (login) dark, right side (register) blue */
+.info-content p {
+    font-size: 16px;
+    color: #fff;
+}
+.auth-container .curved-shape {
+    position: absolute;
+    right: 0;
+    top: -5px;
+    height: 600px;
+    width: 850px;
+    background: linear-gradient(45deg, #0f1429, var(--accent-primary));
+    transform: rotate(10deg) skewY(40deg);
+    transform-origin: bottom right;
+    transition: 1.5s ease;
+    transition-delay: 1.6s;
+}
+
+.auth-container.active .curved-shape {
+    transform: rotate(0deg) skewY(0deg);
+    transition-delay: .5s;
+}
+
+.auth-container .curved-shape2 {
+    position: absolute;
+    left: 250px;
+    top: 100%;
+    height: 700px;
+    width: 850px;
+    background: #0f1429;
+    border-top: 3px solid var(--accent-primary);
+    transform: rotate(0deg) skewY(0deg);
+    transform-origin: bottom left;
+    transition: 1.5s ease;
+    transition-delay: .5s;
+}
+
+.auth-container.active .curved-shape2 {
+    transform: rotate(-11deg) skewY(-41deg);
+    transition-delay: 1.2s;
+}
+
+/* Make register form breathe: extra vertical spacing */
+.form-box.Register {
+    padding-top: 40px !important;
+    padding-bottom: 40px !important;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(150px);
+    padding: 16px 24px;
+    background: #4caf50;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast.error {
+    background: #f44336;
+}
+
+.toast.success {
+    background: #4caf50;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .auth-container {
+        width: 100%;
+        height: 100vh;
+        max-width: 100%;
+    }
+
+    .form-box.Login,
+    .form-box.Register {
+        width: 100%;
+        padding: 0 30px;
+    }
+
+    .info-content.Login,
+    .info-content.Register {
+        width: 100%;
+        padding: 40px 30px;
+    }
+
+    .auth-container .curved-shape,
+    .auth-container .curved-shape2 {
+        display: none;
+    }
+}
+
+/* Extra small devices tweaks */
+@media (max-width: 480px) {
+    .auth-page {
+        padding: 20px 12px;
+        align-items: flex-start;
+    }
+
+    .auth-container {
+        width: 100%;
+        height: auto;
+        min-height: 100vh;
+        border-radius: 12px;
+        border: none;
+        box-shadow: none;
+        padding: 24px 12px 48px;
+        overflow: visible;
+    }
+
+    .auth-container .form-box,
+    .info-content {
+        position: relative;
+        width: 100%;
+        height: auto;
+        padding: 0 8px !important;
+    }
+
+    .form-box.Login,
+    .form-box.Register {
+        left: 0; right: 0;
+        padding: 0 8px !important;
+    }
+
+    .form-box h2 { font-size: 22px; }
+    .info-content h2 { font-size: 20px; }
+
+    .input-box { height: auto; margin-top: 18px; }
+    .input-box input { height: 48px; font-size: 16px; padding: 12px; }
+
+    .btn { height: 52px; font-size: 16px; border-radius: 12px; }
+
+    .auth-container .curved-shape,
+    .auth-container .curved-shape2 { display: none; }
+
+    .regi-link { margin: 14px 0; font-size: 13px; }
+
+    .toast { left: 12px; right: 12px; transform: none; bottom: 18px; width: auto; }
+}
+
+.auth-container {
+    position: relative;
+    width: 750px;
+    height: 450px;
+    border: 2px solid var(--accent-primary);
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5), inset 0 0 30px rgba(0, 212, 255, 0.1);
+    overflow: hidden;
+}
+
+.auth-container .form-box {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    color: #fff;
+}
+
+.form-box.Login {
+    left: 0;
+    padding: 0 40px;
+}
+
+.form-box.Login .animation {
+    transform: translateX(0%);
+    transition: 0.7s;
+    opacity: 1;
+    transition-delay: calc(0.1s * var(--S));
+}
+
+.auth-container.active .form-box.Login .animation {
+    transform: translateX(-120%);
+    opacity: 0;
+    transition-delay: calc(0.1s * var(--D));
+}
+
+.form-box.Register {
+    right: 0;
+    padding: 0 60px;
+}
+
+.form-box.Register .animation {
+    transform: translateX(120%);
+    transition: 0.7s ease;
+    opacity: 0;
+    filter: blur(10px);
+    transition-delay: calc(0.1s * var(--S));
+}
+
+.auth-container.active .form-box.Register .animation {
+    transform: translateX(0%);
+    opacity: 1;
+    filter: blur(0px);
+    transition-delay: calc(0.1s * var(--li));
+}
+
+.form-box h2 {
+    font-size: 32px;
+    text-align: center;
+    color: #fff;
+    margin: 0;
+}
+
+.form-box .input-box {
+    position: relative;
+    width: 100%;
+    height: 50px;
+    margin-top: 25px;
+}
+
+.input-box input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    color: #fff;
+    font-weight: 600;
+    border-bottom: 2px solid #fff;
+    padding-right: 23px;
+    transition: .5s;
+}
+
+.input-box input::placeholder {
+    color: rgba(255,255,255,0.4);
+}
+
+.input-box input:focus,
+.input-box input:valid {
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.input-box label {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.6);
+    transition: 0.5s;
+    pointer-events: none;
+}
+
+.input-box input:focus ~ label,
+.input-box input:valid ~ label {
+    top: -5px;
+    color: var(--accent-primary);
+    font-size: 14px;
+}
+
+.input-box svg {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.5);
+    transition: 0.5s;
+}
+
+.input-box input:focus ~ svg,
+.input-box input:valid ~ svg {
+    color: var(--accent-primary);
+}
+
+.btn {
+    position: relative;
+    width: 100%;
+    height: 45px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(179, 102, 255, 0.2));
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    border: 2px solid var(--accent-primary);
+    overflow: hidden;
+    z-index: 1;
+    color: #fff;
+    transition: 0.5s;
+}
+
+.btn::before {
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), #b366ff, var(--accent-primary));
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: 0.5s;
+}
+
+.btn:hover::before {
+    top: 0;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.regi-link {
+    font-size: 14px;
+    text-align: center;
+    margin: 20px 0 10px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.regi-link a {
+    text-decoration: none;
+    color: var(--accent-primary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.regi-link a:hover {
+    text-decoration: underline;
+    color: #b366ff;
+}
+
+.info-content {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 50%;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    color: #fff;
+}
+
+.info-content.Login {
+    right: 0;
+    text-align: right;
+    padding: 0 40px 60px 150px;
+}
+
+.info-content.Login .animation {
+    transform: translateX(0);
+    transition: 0.7s ease;
+    transition-delay: calc(0.1s * var(--S));
+    opacity: 1;
+    filter: blur(0px);
+}
+
+.auth-container.active .info-content.Login .animation {
+    transform: translateX(120%);
+    opacity: 0;
+    filter: blur(10px);
+    transition-delay: calc(0.1s * var(--D));
+}
+
+.info-content.Register {
+    left: 0;
+    text-align: left;
+    padding: 0 150px 60px 38px;
+    pointer-events: none;
+}
+
+.info-content.Register .animation {
+    transform: translateX(-120%);
+    transition: 0.7s ease;
+    opacity: 0;
+    filter: blur(10px);
+    transition-delay: calc(0.1s * var(--S));
+}
+
+.auth-container.active .info-content.Register .animation {
+    transform: translateX(0%);
+    opacity: 1;
+    filter: blur(0);
+    transition-delay: calc(0.1s * var(--li));
+}
+
+.info-content h2 {
+    text-transform: uppercase;
+    font-size: 36px;
+    line-height: 1.3;
+    margin: 0;
+    color: #fff;
+}
+
+.info-content p {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.auth-container .curved-shape {
+    position: absolute;
+    right: 0;
+    top: -5px;
+    height: 600px;
+    width: 850px;
+    background: linear-gradient(45deg, rgba(15, 20, 41, 0.6), rgba(0, 212, 255, 0.3));
+    transform: rotate(10deg) skewY(40deg);
+    transform-origin: bottom right;
+    transition: 1.5s ease;
+    transition-delay: 1.6s;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.auth-container.active .curved-shape {
+    transform: rotate(0deg) skewY(0deg);
+    transition-delay: 0.5s;
+}
+
+.auth-container .curved-shape2 {
+    position: absolute;
+    left: 250px;
+    top: 100%;
+    height: 700px;
+    width: 850px;
+    background: linear-gradient(135deg, rgba(15, 20, 41, 0.8), rgba(26, 40, 71, 0.6));
+    border-top: 3px solid var(--accent-primary);
+    transform: rotate(0deg) skewY(0deg);
+    transform-origin: bottom left;
+    transition: 1.5s ease;
+    transition-delay: 0.5s;
+}
+
+.auth-container.active .curved-shape2 {
+    transform: rotate(-11deg) skewY(-41deg);
+    transition-delay: 1.2s;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(150px);
+    padding: 16px 24px;
+    background: #10b981;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    border-left: 4px solid var(--accent-primary);
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast.error {
+    background: #ef4444;
+    border-left-color: #ff6b6b;
+}
+
+.toast.success {
+    background: #10b981;
+    border-left-color: var(--accent-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .auth-container {
+        width: 100%;
+        height: 100vh;
+        max-width: 100%;
+    }
+
+    .form-box.Login,
+    .form-box.Register {
+        width: 100%;
+        padding: 0 30px;
+    }
+
+    .info-content.Login,
+    .info-content.Register {
+        width: 100%;
+        padding: 40px 30px;
+    }
+
+    .auth-container .curved-shape,
+    .auth-container .curved-shape2 {
+        display: none;
+    }
+}
+
+.auth-container {
+    position: relative;
+    width: 750px;
+    height: 450px;
+    border: 2px solid var(--accent-primary);
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5), inset 0 0 30px rgba(0, 212, 255, 0.1);
+    overflow: hidden;
+}
+
+.auth-container .form-box {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    color: #fff;
+}
+
+.form-box.Login {
+    left: 0;
+    padding: 0 40px;
+}
+
+.form-box.Login .animation {
+    transform: translateX(0%);
+    transition: 0.7s;
+    opacity: 1;
+    transition-delay: calc(0.1s * var(--S));
+}
+
+.auth-container.active .form-box.Login .animation {
+    transform: translateX(-120%);
+    opacity: 0;
+    transition-delay: calc(0.1s * var(--D));
+}
+
+.form-box.Register {
+    right: 0;
+    padding: 0 60px;
+}
+
+.form-box.Register .animation {
+    transform: translateX(120%);
+    transition: 0.7s ease;
+    opacity: 0;
+    filter: blur(10px);
+    transition-delay: calc(0.1s * var(--S));
+}
+
+.auth-container.active .form-box.Register .animation {
+    transform: translateX(0%);
+    opacity: 1;
+    filter: blur(0px);
+    transition-delay: calc(0.1s * var(--li));
+}
+
+.form-box h2 {
+    font-size: 32px;
+    text-align: center;
+    color: #fff;
+    margin: 0;
+}
+
+.form-box .input-box {
+    position: relative;
+    width: 100%;
+    height: 50px;
+    margin-top: 25px;
+    display: flex;
+    align-items: center;
+}
+
+.input-box input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    color: #fff;
+    font-weight: 600;
+    border-bottom: 2px solid #fff;
+    padding-right: 23px;
+    padding: 0 23px 0 0;
+    transition: 0.5s;
+}
+
+    .input-box input:focus,
+    .input-box input:valid {
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.input-box label {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: #fff;
+    transition: 0.5s;
+    pointer-events: none;
+}
+
+.input-box input:focus ~ label,
+.input-box input:valid ~ label {
+    top: -5px;
+    color: var(--accent-primary);
+}
+
+.input-box svg {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    color: #fff;
+    transition: 0.5s;
+}
+
+.input-box input:focus ~ svg,
+.input-box input:valid ~ svg {
+    color: var(--accent-primary);
+}
+
+.btn {
+    position: relative;
+    width: 100%;
+    height: 45px;
+    background: transparent;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    border: 2px solid var(--accent-primary);
+    overflow: hidden;
+    z-index: 1;
+    color: #fff;
+    transition: 0.5s;
+}
+
+.btn::before {
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    background: linear-gradient(#25252b, var(--accent-primary), #25252b, var(--accent-secondary));
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: 0.5s;
+}
+
+.btn:hover::before {
+    top: 0;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.regi-link {
+    font-size: 14px;
+    text-align: center;
+    margin: 20px 0 10px;
+    color: #fff;
+}
+
+.regi-link a {
+    text-decoration: none;
+    color: var(--accent-primary);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.regi-link a:hover {
+    text-decoration: underline;
+}
+
+.info-content {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 50%;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    color: #fff;
+}
+
+.info-content.Login {
+    right: 0;
+    text-align: right;
+    padding: 0 40px 60px 150px;
+}
+
+.info-content.Login .animation {
+    transform: translateX(0);
+    transition: 0.7s ease;
+    transition-delay: calc(0.1s * var(--S));
+    opacity: 1;
+    filter: blur(0px);
+}
+
+.auth-container.active .info-content.Login .animation {
+    transform: translateX(120%);
+    opacity: 0;
+    filter: blur(10px);
+    transition-delay: calc(0.1s * var(--D));
+}
+
+.info-content.Register {
+    left: 0;
+    text-align: left;
+    padding: 0 150px 60px 38px;
+    pointer-events: none;
+}
+
+.info-content.Register .animation {
+    transform: translateX(-120%);
+    transition: 0.7s ease;
+    opacity: 0;
+    filter: blur(10px);
+    transition-delay: calc(0.1s * var(--S));
+}
+
+.auth-container.active .info-content.Register .animation {
+    transform: translateX(0%);
+    opacity: 1;
+    filter: blur(0);
+    transition-delay: calc(0.1s * var(--li));
+}
+
+.info-content h2 {
+    text-transform: uppercase;
+    font-size: 36px;
+    line-height: 1.3;
+    margin: 0;
+    color: #fff;
+}
+
+.info-content p {
+    font-size: 16px;
+    color: #fff;
+}
+
+.auth-container .curved-shape {
+    position: absolute;
+    right: 0;
+    top: -5px;
+    height: 600px;
+    width: 850px;
+    background: linear-gradient(45deg, #25252b, var(--accent-primary));
+    transform: rotate(10deg) skewY(40deg);
+    transform-origin: bottom right;
+    transition: 1.5s ease;
+    transition-delay: 1.6s;
+}
+
+.auth-container.active .curved-shape {
+    transform: rotate(0deg) skewY(0deg);
+    transition-delay: 0.5s;
+}
+
+.auth-container .curved-shape2 {
+    position: absolute;
+    left: 250px;
+    top: 100%;
+    height: 700px;
+    width: 850px;
+    background: #25252b;
+    border-top: 3px solid var(--accent-primary);
+    transform: rotate(0deg) skewY(0deg);
+    transform-origin: bottom left;
+    transition: 1.5s ease;
+    transition-delay: 0.5s;
+}
+
+.auth-container.active .curved-shape2 {
+    transform: rotate(-11deg) skewY(-41deg);
+    transition-delay: 1.2s;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(150px);
+    padding: 16px 24px;
+    background: #4caf50;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast.error {
+    background: #f44336;
+}
+
+.toast.success {
+    background: #4caf50;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .auth-container {
+        width: 100%;
+        height: 100vh;
+        max-width: 100%;
+    }
+
+    .form-box.Login,
+    .form-box.Register {
+        width: 100%;
+        padding: 0 30px;
+    }
+
+    .info-content.Login,
+    .info-content.Register {
+        width: 100%;
+        padding: 40px 30px;
+    }
+
+    .auth-container .curved-shape,
+    .auth-container .curved-shape2 {
+        display: none;
+    }
+}

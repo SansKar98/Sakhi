@@ -1,0 +1,88 @@
+[
+  {
+    "Name": "Aabhiruchi Jan Kalyan Sansthan",
+    "Cause": "Aged/Elderly",
+    "Address": "B-702, Jeevan Vihar Appartment, P & T square, Kotra Sultanabad, Bhopal",
+    "lat": 23.2177066,
+    "lon": 77.3936881
+  },
+  {
+    "Name": "Aadhar Gyan Dhatri Samiti",
+    "Cause": "Children",
+    "Address": "E-4/223, Arera Colony, Bhopal",
+    "lat": 23.2119449,
+    "lon": 77.4340057
+  },
+  {
+    "Name": "Aadimjaati Manav Kalyan Evam Utthan Society",
+    "Cause": "Children",
+    "Address": "25/24, EWS, Old Subhash Nagar, Bhopal",
+    "lat": 23.2500931,
+    "lon": 77.4292187
+  },
+  {
+    "Name": "Aalok Aastha Lok Kalyan Samiti",
+    "Cause": "Aged/Elderly",
+    "Address": "265-A, Sarvadharma, Kolar Road, Bhopal - 462042",
+    "lat": 23.1740488,
+    "lon": 77.4174008
+  },
+  {
+    "Name": "Aanjneya Welfare Organization",
+    "Cause": "Agriculture",
+    "Address": "C-1, Sahyog Parisar, Trilanga, Bhopal - 462039",
+    "lat": 23.1905708,
+    "lon": 77.4299979
+  },
+  {
+    "Name": "Aarambh Education And Community Development Society Bhopal",
+    "Cause": "Drinking Water",
+    "Address": "52-C, Mohini Parisar, Indrapuri (BHEL), Bhopal - 462021",
+    "lat": 23.25714595561159,
+    "lon": 77.40571769702856,
+    "note": "Fallback approximate location"
+  },
+  {
+    "Name": "Aasra Youth Cultural And Social Welfare Society",
+    "Cause": "Health & Family Welfare",
+    "Address": "3/2, Chitragupt Marg, Ginnori, Bhopal - 462003",
+    "lat": 23.252573518533993,
+    "lon": 77.37853754630238,
+    "note": "Fallback approximate location"
+  },
+  {
+    "Name": "Aas Society",
+    "Cause": "Animal Husbandry",
+    "Address": "S-9, Shanti Homes II, Plot No 47, Sarvadharma Sector, Kolar Road, Bhopal",
+    "lat": 23.1546244,
+    "lon": 77.4125783
+  },
+  {
+    "Name": "AISECT",
+    "Cause": "Agriculture",
+    "Address": "Scope Campus, NH-12, Near Misrod, Hoshangabad Road, Bhopal - 462047",
+    "lat": 23.1876646,
+    "lon": 77.4529413
+  },
+  {
+    "Name": "Anunay Education And Welfare Society",
+    "Cause": "Education",
+    "Address": "M.I.G. 32, Sumitra Parisar, Phase 1, Kolar Rd, Bhopal - 462042",
+    "lat": 23.1740488,
+    "lon": 77.4174008
+  },
+  {
+    "Name": "Prospect Education & Social Welfare Society",
+    "Cause": "Social Welfare",
+    "Address": "R-52, First Floor, Chetak Bridge, Zone-I, Maharana Pratap Nagar, Bhopal - 462011",
+    "lat": 23.2383564,
+    "lon": 77.4331429
+  },
+  {
+    "Name": "Harshini Social Welfare Foundation",
+    "Cause": "Social Welfare",
+    "Address": "AM-85, Rajeev Nagar, Sector A, Piplani, BHEL, Bhopal - 462022",
+    "lat": 23.2324031,
+    "lon": 77.4583924
+  }
+]

@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-space-navy-900 text-white selection:bg-neon-cyan-500 selection:text-space-navy-900;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply backdrop-blur-md bg-opacity-20 bg-space-navy-800 border border-white/10 shadow-glass rounded-2xl;
+  }
+
+  .btn-primary {
+    @apply bg-neon-cyan-500 text-space-navy-900 font-bold py-3 px-6 rounded-xl hover:bg-neon-cyan-400 transition-all duration-300 shadow-neon-cyan hover:scale-[1.02] active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-soft-lavender-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-soft-lavender-400 transition-all duration-300 shadow-neon-lavender hover:scale-[1.02] active:scale-95;
+  }
+}
+
+.map-tiles {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
+.map-tiles-grayscale {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
+/* Custom Marker Pulse */
+.marker-pulse {
+  background: radial-gradient(circle, rgba(139, 92, 246, 1) 0%, rgba(139, 92, 246, 0) 70%);
+  border-radius: 50%;
+  animation: pulse-slow 2s infinite;
+}
+
+.leaflet-routing-container {
+  @apply glass-panel text-white !important;
+  width: 380px !important;
+  max-width: 90vw !important;
+  min-height: 100px !important;
+  max-height: 60vh !important;
+  margin: 20px auto !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background-color: rgba(10, 25, 41, 0.85) !important;
+  border: 1px solid rgba(0, 225, 255, 0.3) !important;
+  border-radius: 1.5rem !important;
+  padding: 15px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6) !important;
+  font-family: inherit !important;
+  z-index: 1000 !important;
+}
+
+.leaflet-routing-alt {
+  display: block !important;
+  background: transparent !important;
+  max-height: none !important;
+}
+
+.leaflet-routing-alt table {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+
+.leaflet-routing-alt td {
+  padding: 12px 8px !important;
+  font-size: 0.95rem !important;
+  line-height: 1.5 !important;
+  color: #ffffff !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.leaflet-routing-icon {
+  width: 20px !important;
+  height: 20px !important;
+  margin-right: 10px !important;
+  filter: invert(0.85) sepia(0.9) saturate(15) hue-rotate(160deg);
+  opacity: 0.9;
+}
+
+.leaflet-routing-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.leaflet-routing-container::-webkit-scrollbar-thumb {
+  background: #8b5cf6;
+  border-radius: 10px;
+}
