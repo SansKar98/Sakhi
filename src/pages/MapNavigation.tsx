@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
@@ -57,12 +57,12 @@ const RoutingEngine = ({ start, end, show, onRouteFound }: any) => {
         },
         polylinePrecision: 6,
         requestParameters: {
-          access_token: 'YOUR_MAPBOX_TOKEN_HERE',
+          access_token: import.meta.env.VITE_MAPBOX_TOKEN,
           geometries: 'polyline6'
         }
       }),
-      lineOptions: { styles: [{ color: '#00e1ff', weight: 6, opacity: 0.8, className: 'animate-pulse' }] },
-      altLineOptions: { styles: [{ color: '#8b5cf6', weight: 4, opacity: 0.5 }] },
+      lineOptions: { styles: [{ opacity: 0, weight: 0 }] },
+      altLineOptions: { styles: [{ opacity: 0, weight: 0 }] },
       showAlternatives: true,
       addWaypoints: false,
       draggableWaypoints: false,
@@ -184,7 +184,7 @@ function calculateDangerScore(routeCoords: L.LatLng[], dangerZones: any[]): numb
   return score;
 }
 
-async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: number, dangerZones: any[]) {
+async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: number, dangerZones: any[], preloadedElements: any[] | null = null) {
   if (!routeCoords || routeCoords.length === 0) return { score: 0, details: 'No route' };
   
   const lenKm = Math.max(0.1, routeLengthKm);
@@ -270,7 +270,7 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
   
   const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
   const query = `
-    [out:json][timeout:25];
+    [out:json][timeout:60];
     (
       node["amenity"="police"](${bbox});
       node["amenity"="hospital"](${bbox});
@@ -287,16 +287,20 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
   `;
   
   try {
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: query
-    });
-    if (!res.ok) throw new Error('Overpass API failed');
-    const data = await res.json();
+    let dataElements = preloadedElements;
+    if (!dataElements) {
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query
+      });
+      if (!res.ok) throw new Error('Overpass API failed');
+      const data = await res.json();
+      dataElements = data.elements;
+    }
     
     let police = 0, hospital = 0, fireStation = 0, cctv = 0, streetLight = 0, transit = 0, abandoned = 0, bar = 0, pub = 0, alcohol = 0;
     
-    data.elements.forEach((el: any) => {
+    dataElements.forEach((el: any) => {
       const poiCoords = new L.LatLng(el.lat, el.lon);
       const dist = computeMinDistanceToRouteMeters(routeCoords, poiCoords);
       if (dist < 300) {
@@ -1120,6 +1124,51 @@ export default function MapNavigation() {
                   setRouteScores(newScores);
                   
                   (async () => {
+                    // Pre-fetch global bounding box for ALL routes to prevent rate limiting
+                    let globalElements: any[] | null = null;
+                    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+                    routes.forEach(rt => {
+                      (rt.coordinates || []).forEach((c: any) => {
+                        if (c.lat < minLat) minLat = c.lat;
+                        if (c.lat > maxLat) maxLat = c.lat;
+                        if (c.lng < minLng) minLng = c.lng;
+                        if (c.lng > maxLng) maxLng = c.lng;
+                      });
+                    });
+                    minLat -= 0.005; maxLat += 0.005;
+                    minLng -= 0.005; maxLng += 0.005;
+                    
+                    const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
+                    const query = `
+                      [out:json][timeout:60];
+                      (
+                        node["amenity"="police"](${bbox});
+                        node["amenity"="hospital"](${bbox});
+                        node["amenity"="fire_station"](${bbox});
+                        node["highway"="street_lamp"](${bbox});
+                        node["man_made"="surveillance"](${bbox});
+                        node["public_transport"="station"](${bbox});
+                        node["building"="abandoned"](${bbox});
+                        node["amenity"="bar"](${bbox});
+                        node["amenity"="pub"](${bbox});
+                        node["shop"="alcohol"](${bbox});
+                      );
+                      out body;
+                    `;
+                    
+                    try {
+                      const res = await fetch('https://overpass-api.de/api/interpreter', {
+                        method: 'POST',
+                        body: query
+                      });
+                      if (res.ok) {
+                        const json = await res.json();
+                        globalElements = json.elements;
+                      }
+                    } catch (err) {
+                      console.warn("Global Overpass pre-fetch failed", err);
+                    }
+
                     for (let idx = 0; idx < routes.length; idx++) {
                       const rt = routes[idx];
                       const mockZones = dangerZones.length > 0 ? dangerZones : [
@@ -1128,7 +1177,18 @@ export default function MapNavigation() {
                         { id: 'mock-3', latitude: currentPos.lat + 0.004, longitude: currentPos.lng - 0.004, severity: 1 }
                       ];
                       const routeLengthKm = (rt.summary?.totalDistance || 0) / 1000;
-                      const envData = await fetchEnvironmentalData(rt.coordinates || [], routeLengthKm, mockZones);
+                      let envData: any = null;
+                      
+                      // If globalElements failed, fallback to individual retries
+                      if (globalElements) {
+                         envData = await fetchEnvironmentalData(rt.coordinates || [], routeLengthKm, mockZones, globalElements);
+                      } else {
+                        for (let retry = 0; retry < 3; retry++) {
+                          envData = await fetchEnvironmentalData(rt.coordinates || [], routeLengthKm, mockZones);
+                          if (!envData.details.includes('Offline Mode')) break;
+                          if (retry < 2) await new Promise(resolve => setTimeout(resolve, 3000));
+                        }
+                      }
                       
                       setRouteScores(prev => ({
                         ...prev,
@@ -1145,15 +1205,49 @@ export default function MapNavigation() {
                         setDynamicSafeHavens(envData.safePoIs || []);
                         setDynamicDangerZones(envData.riskPoIs || []);
                       }
-                      
-                      // Prevent Overpass API rate-limiting by delaying subsequent queries
-                      if (idx < routes.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, 1500));
-                      }
                     }
                   })();
                 }
               }}
+            />
+          )}
+
+          {allRoutes.map((rt, idx) => {
+            if (selectedRouteIndex === idx) return null;
+            return (
+              <Polyline
+                key={`alt-${idx}`}
+                positions={rt.coordinates || []}
+                color="#8b5cf6"
+                weight={4}
+                opacity={0.5}
+                eventHandlers={{
+                  click: () => {
+                    setSelectedRouteIndex(idx);
+                    setRouteCoords(rt.coordinates || []);
+                    if (rt.summary) setRouteSummary({ distance: rt.summary.totalDistance, time: rt.summary.totalTime });
+                    setRouteSteps(rt.instructions || []);
+                    setCurrentStepIndex(0);
+                    setIsDeviated(false);
+                    const routeData = routeScores[idx];
+                    if (routeData) {
+                      if (routeData.safePoIs) setDynamicSafeHavens(routeData.safePoIs);
+                      if (routeData.riskPoIs) setDynamicDangerZones(routeData.riskPoIs);
+                    }
+                  }
+                }}
+              />
+            );
+          })}
+          
+          {allRoutes.length > 0 && selectedRouteIndex < allRoutes.length && (
+            <Polyline
+              key={`selected-${selectedRouteIndex}`}
+              positions={allRoutes[selectedRouteIndex].coordinates || []}
+              color="#00e1ff"
+              weight={6}
+              opacity={0.8}
+              className="animate-pulse"
             />
           )}
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabase';
 import { ShieldCheck, AlertOctagon } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -108,7 +109,7 @@ export default function GuardianTrack() {
         <MapContainer 
           center={[currentLoc.lat, currentLoc.lng]} 
           zoom={15} 
-          style={{ height: '100%', width: '100%' }}
+          style={{ position: 'absolute', inset: 0, height: '100%', width: '100%' }}
         >
           <TileLayer
             className="map-tiles"

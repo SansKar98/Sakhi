@@ -1088,4 +1088,37 @@
     .auth-container .curved-shape2 {
         display: none;
     }
+
+    /* Fix overlap on mobile by hiding the extra text panels */
+    .info-content {
+        display: none !important;
+    }
+}
+
+/* Ensure mobile inputs are accessible and properly centered */
+@media (max-width: 480px) {
+    .auth-page {
+        padding: 0 !important;
+    }
+    .auth-container {
+        height: 100vh !important;
+        min-height: 100vh !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+    }
+    .auth-container .form-box {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        padding: 0 20px !important;
+    }
+    .info-content {
+        display: none !important;
+    }
 }
