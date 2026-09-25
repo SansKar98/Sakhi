@@ -289,10 +289,14 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
   try {
     let dataElements = preloadedElements;
     if (!dataElements) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       const res = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
-        body: query
+        body: query,
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error('Overpass API failed');
       const data = await res.json();
       dataElements = data.elements;
@@ -410,6 +414,7 @@ export default function MapNavigation() {
     return stored === 'true';
   });
   const [isDeviated, setIsDeviated] = useState(false);
+  const [isCheckingScores, setIsCheckingScores] = useState(false);
   const [stationaryAlerted, setStationaryAlerted] = useState(false);
   const [hasLiveFix, setHasLiveFix] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -761,6 +766,21 @@ export default function MapNavigation() {
     );
   }
 
+  async function handleCheckScores() {
+    if (!startCoords) {
+      addToast('Please select a Boarding location.', 'error');
+      return;
+    }
+    if (!dropCoords) {
+      addToast('Please select a Drop location.', 'error');
+      return;
+    }
+    setRouteStart(startCoords);
+    setRouteEnd(dropCoords);
+    setIsCheckingScores(true);
+    setAllRoutes([]);
+  }
+
   async function handleStartTravel() {
     if (!startCoords) {
       addToast('Please select a Boarding location or use your current location.', 'error');
@@ -1101,7 +1121,7 @@ export default function MapNavigation() {
             <RoutingEngine
               start={routeStart}
               end={routeEnd}
-              show={isTravelling}
+              show={isTravelling || isCheckingScores}
               onRouteFound={(routes: any[]) => {
                 setAllRoutes(routes || []);
                 const primaryRoute = routes[0];
@@ -1157,10 +1177,14 @@ export default function MapNavigation() {
                     `;
                     
                     try {
+                      const controller = new AbortController();
+                      const timeoutId = setTimeout(() => controller.abort(), 10000);
                       const res = await fetch('https://overpass-api.de/api/interpreter', {
                         method: 'POST',
-                        body: query
+                        body: query,
+                        signal: controller.signal
                       });
+                      clearTimeout(timeoutId);
                       if (res.ok) {
                         const json = await res.json();
                         globalElements = json.elements;
@@ -1263,7 +1287,14 @@ export default function MapNavigation() {
           )}
 
           {!isTravelling && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xs px-4">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-sm px-4 flex flex-col gap-2">
+              <button
+                onClick={handleCheckScores}
+                className="w-full bg-soft-lavender-500 text-white px-8 py-3 rounded-2xl font-bold shadow-neon-lavender hover:scale-105 transition-transform flex items-center justify-center gap-2"
+              >
+                <Search size={18} />
+                CHECK ROUTES & SCORES
+              </button>
               <button
                 onClick={handleStartTravel}
                 className="w-full bg-neon-cyan-500 text-space-navy-900 px-8 py-4 rounded-2xl font-black text-lg shadow-neon-cyan hover:scale-105 transition-transform flex items-center justify-center gap-2 group"
