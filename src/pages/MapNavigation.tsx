@@ -184,6 +184,35 @@ function calculateDangerScore(routeCoords: L.LatLng[], dangerZones: any[]): numb
   return score;
 }
 
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter'
+];
+
+async function fetchOverpassWithFallback(query: string, signal: AbortSignal) {
+  let lastError = new Error('All Overpass API endpoints failed');
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        body: query,
+        signal
+      });
+      if (res.ok) {
+        return await res.json();
+      } else {
+        lastError = new Error(`Overpass API returned ${res.status} on ${endpoint}`);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') throw err;
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
 async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: number, dangerZones: any[], preloadedElements: any[] | null = null) {
   if (!routeCoords || routeCoords.length === 0) return { score: 0, details: 'No route' };
   
@@ -291,14 +320,8 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
     if (!dataElements) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 45000);
-      const res = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: query,
-        signal: controller.signal
-      });
+      const data = await fetchOverpassWithFallback(query, controller.signal);
       clearTimeout(timeoutId);
-      if (!res.ok) throw new Error('Overpass API failed');
-      const data = await res.json();
       dataElements = data.elements;
     }
     
@@ -1179,14 +1202,9 @@ export default function MapNavigation() {
                     try {
                       const controller = new AbortController();
                       const timeoutId = setTimeout(() => controller.abort(), 45000);
-                      const res = await fetch('https://overpass-api.de/api/interpreter', {
-                        method: 'POST',
-                        body: query,
-                        signal: controller.signal
-                      });
+                      const json = await fetchOverpassWithFallback(query, controller.signal);
                       clearTimeout(timeoutId);
-                      if (res.ok) {
-                        const json = await res.json();
+                      if (json) {
                         globalElements = json.elements;
                       }
                     } catch (err) {
