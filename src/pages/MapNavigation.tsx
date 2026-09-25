@@ -191,23 +191,38 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass.kumi.systems/api/interpreter'
 ];
 
-async function fetchOverpassWithFallback(query: string, signal: AbortSignal) {
+async function fetchOverpassWithFallback(query: string, globalSignal: AbortSignal) {
   let lastError = new Error('All Overpass API endpoints failed');
   for (const endpoint of OVERPASS_ENDPOINTS) {
+    if (globalSignal.aborted) throw new Error('Aborted by global timeout');
+    
     try {
+      const controller = new AbortController();
+      // Give each endpoint 12 seconds to respond before trying the next
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      
+      const onGlobalAbort = () => controller.abort();
+      globalSignal.addEventListener('abort', onGlobalAbort);
+      
       const res = await fetch(endpoint, {
         method: 'POST',
         body: query,
-        signal
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      globalSignal.removeEventListener('abort', onGlobalAbort);
+      
       if (res.ok) {
         return await res.json();
       } else {
         lastError = new Error(`Overpass API returned ${res.status} on ${endpoint}`);
       }
     } catch (err: any) {
-      if (err.name === 'AbortError') throw err;
+      if (globalSignal.aborted) throw err;
+      // If it's just this endpoint's timeout or a network error, continue to the next one
       lastError = err;
+      console.warn(`Overpass endpoint ${endpoint} failed:`, err);
     }
   }
   throw lastError;
@@ -319,7 +334,7 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
     let dataElements = preloadedElements;
     if (!dataElements) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
       const data = await fetchOverpassWithFallback(query, controller.signal);
       clearTimeout(timeoutId);
       dataElements = data.elements;
