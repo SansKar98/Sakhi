@@ -290,7 +290,7 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
     let dataElements = preloadedElements;
     if (!dataElements) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
       const res = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
         body: query,
@@ -1178,7 +1178,7 @@ export default function MapNavigation() {
                     
                     try {
                       const controller = new AbortController();
-                      const timeoutId = setTimeout(() => controller.abort(), 10000);
+                      const timeoutId = setTimeout(() => controller.abort(), 45000);
                       const res = await fetch('https://overpass-api.de/api/interpreter', {
                         method: 'POST',
                         body: query,
@@ -1376,7 +1376,7 @@ export default function MapNavigation() {
       )}
 
       {/* Alternative Routes Selection UI */}
-      {isTravelling && allRoutes.length > 0 && (
+      {(isTravelling || isCheckingScores) && allRoutes.length > 0 && (
         <div className="mt-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {allRoutes.map((rt, idx) => {
             const isSelected = selectedRouteIndex === idx;
