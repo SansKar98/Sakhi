@@ -40,6 +40,70 @@ async function fetchGeocode(query: string, signal?: AbortSignal): Promise<GeoSug
   return res.json();
 }
 
+// MultiRouter for fetching diverse alternatives by injecting offset waypoints
+const createMultiRouter = (options: any) => {
+  const RouterClass = (L as any).Class.extend({
+    initialize: function(opts: any) {
+      this.options = opts;
+      this.baseRouter = (L as any).Routing.osrmv1(opts);
+    },
+    
+    route: function(waypoints: any[], callback: any, context: any, opts: any) {
+      if (waypoints.length < 2) return this.baseRouter.route(waypoints, callback, context, opts);
+      
+      const start = waypoints[0].latLng;
+      const end = waypoints[waypoints.length - 1].latLng;
+      
+      const dx = end.lng - start.lng;
+      const dy = end.lat - start.lat;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      
+      const nx = -dy / dist;
+      const ny = dx / dist;
+      const mid = { lat: (start.lat + end.lat) / 2, lng: (start.lng + end.lng) / 2 };
+      
+      const offset = Math.min(dist * 0.3, 0.02); // Max ~2km offset
+      const wpLeft = (L as any).latLng(mid.lat + nx * offset, mid.lng + ny * offset);
+      const wpRight = (L as any).latLng(mid.lat - nx * offset, mid.lng - ny * offset);
+      
+      let allFoundRoutes: any[] = [];
+      let completed = 0;
+      
+      const finish = () => {
+        completed++;
+        if (completed === 3) {
+          const uniqueRoutes = [];
+          const seenDists = new Set();
+          for(let r of allFoundRoutes) {
+             const d = Math.round(r.summary.totalDistance);
+             if(!seenDists.has(d)) {
+                seenDists.add(d);
+                uniqueRoutes.push(r);
+             }
+          }
+          callback.call(context, null, uniqueRoutes);
+        }
+      };
+      
+      this.baseRouter.route(waypoints, (err: any, routes: any[]) => {
+        if(!err && routes) allFoundRoutes.push(...routes);
+        finish();
+      }, context, opts);
+      
+      this.baseRouter.route([{latLng: start}, {latLng: wpLeft}, {latLng: end}], (err: any, routes: any[]) => {
+        if(!err && routes) allFoundRoutes.push(...routes);
+        finish();
+      }, context, opts);
+      
+      this.baseRouter.route([{latLng: start}, {latLng: wpRight}, {latLng: end}], (err: any, routes: any[]) => {
+        if(!err && routes) allFoundRoutes.push(...routes);
+        finish();
+      }, context, opts);
+    }
+  });
+  return new RouterClass(options);
+};
+
 // Routing Component
 const RoutingEngine = ({ start, end, show, onRouteFound }: any) => {
   const map = useMap();
@@ -48,7 +112,7 @@ const RoutingEngine = ({ start, end, show, onRouteFound }: any) => {
 
     const routingControl = (L as any).Routing.control({
       waypoints: [start, end],
-      router: (L as any).Routing.osrmv1({
+      router: createMultiRouter({
         serviceUrl: 'https://api.mapbox.com/directions/v5',
         profile: 'mapbox/driving',
         useHints: false,
@@ -68,10 +132,10 @@ const RoutingEngine = ({ start, end, show, onRouteFound }: any) => {
       draggableWaypoints: false,
       fitSelectedRoutes: true,
       show: false,
-      createMarker: (i: number, wp: any) => {
-        return L.marker(wp.latLng, {
-          icon: i === 0 ? createGlowIcon('#ffffff') : destinationIcon
-        });
+      createMarker: (i: number, wp: any, nWps: number) => {
+        if (i === 0) return L.marker(wp.latLng, { icon: createGlowIcon('#ffffff') });
+        if (i === nWps - 1) return L.marker(wp.latLng, { icon: destinationIcon });
+        return null; // hide intermediate routing waypoints
       }
     }).addTo(map);
 
