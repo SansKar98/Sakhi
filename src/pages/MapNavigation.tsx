@@ -894,8 +894,12 @@ export default function MapNavigation() {
     setIsDeviated(false);
     setHasLiveFix(false);
     setIsPaused(false);
-    setAllRoutes([]);
-    setSelectedRouteIndex(0);
+    if (routeStart?.lat !== startCoords.lat || routeStart?.lng !== startCoords.lng ||
+        routeEnd?.lat !== dropCoords.lat || routeEnd?.lng !== dropCoords.lng) {
+      setAllRoutes([]);
+      setSelectedRouteIndex(0);
+    }
+
     setTravelStartedAt(Date.now());
     setCurrentPos(startCoords);
     lastMoveAtRef.current = Date.now();
