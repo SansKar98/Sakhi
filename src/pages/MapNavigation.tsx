@@ -233,73 +233,77 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
   
   const lenKm = Math.max(0.1, routeLengthKm);
   const currentHour = new Date().getHours();
-  const isNight = (currentHour >= 19 || currentHour <= 5) ? 1 : 0;
-  
-  let unsafeReports = 0;
-  dangerZones.forEach(zone => {
-    const dist = computeMinDistanceToRouteMeters(routeCoords, new L.LatLng(zone.latitude, zone.longitude));
-    if (dist < 300) unsafeReports++;
-  });
+  // Twilight is also dangerous, consider 18:00 to 06:00 as night factor
+  const isNight = (currentHour >= 18 || currentHour <= 6);
+  const nightMultiplier = isNight ? 2.5 : 1.0;
   
   const safePoIs: any[] = [];
   const riskPoIs: any[] = [];
   
-  let historicalCrimeScore = 0;
+  // 1. Kernel Density Estimation (KDE) for Community Reports
+  let unsafeKDE = 0;
+  dangerZones.forEach(zone => {
+    const dist = computeMinDistanceToRouteMeters(routeCoords, new L.LatLng(zone.latitude, zone.longitude));
+    if (dist < 1000) {
+      unsafeKDE += Math.exp(-dist / 200) * 2.0; // Decay over 200m
+    }
+  });
+  
+  // 2. KDE for Historical Crimes
+  let historicalCrimeKDE = 0;
   let crimeCount = 0;
   if (Array.isArray(historicalCrimes)) {
     historicalCrimes.forEach((crime: any) => {
       if (!crime.lat || !crime.lon) return;
       const crimeLatLng = new L.LatLng(crime.lat, crime.lon);
       const dist = computeMinDistanceToRouteMeters(routeCoords, crimeLatLng);
-      if (dist < 500) { // 500m radius for historical crimes
+      if (dist < 1000) { // Extended radius to 1km for KDE
         crimeCount++;
         let severity = 3;
-        if (crime.Crime_Type === 'Mobile Snatching') { historicalCrimeScore += 3.0; severity = 4; }
-        else if (crime.Crime_Type === 'Pickpocketing') { historicalCrimeScore += 2.0; severity = 3; }
-        else if (crime.Crime_Type === 'Burglary') { historicalCrimeScore += 2.5; severity = 4; }
-        else if (crime.Crime_Type === 'Vehicle Theft') { historicalCrimeScore += 1.5; severity = 3; }
-        else if (crime.Crime_Type === 'Public Nuisance') { historicalCrimeScore += 1.5; severity = 2; }
-        else if (crime.Crime_Type === 'Shoplifting') { historicalCrimeScore += 1.0; severity = 2; }
-        else { historicalCrimeScore += 1.0; severity = 3; }
+        // Map severity linearly for KDE
+        if (['Mobile Snatching', 'Burglary', 'Robbery', 'Assault'].includes(crime.Crime_Type)) severity = 5;
+        else if (['Pickpocketing', 'Vehicle Theft'].includes(crime.Crime_Type)) severity = 3;
+        else severity = 2;
         
-        riskPoIs.push({
-          id: crime.Case_ID,
-          latitude: crime.lat,
-          longitude: crime.lon,
-          name: `${crime.Crime_Type} (${crime.Date})`,
-          type: 'crime',
-          severity: severity
-        });
+        // KDE: Closer crimes impact exponentially more
+        historicalCrimeKDE += Math.exp(-dist / 300) * severity;
+        
+        if (dist < 400) {
+          riskPoIs.push({
+            id: crime.Case_ID,
+            latitude: crime.lat,
+            longitude: crime.lon,
+            name: `${crime.Crime_Type} (${crime.Date})`,
+            type: 'crime',
+            severity: severity
+          });
+        }
       }
     });
   }
   
+  // KDE for NGOs
+  let ngoKDE = 0;
   let ngoCount = 0;
   if (Array.isArray(ngosData)) {
     ngosData.forEach((ngo: any) => {
       if (!ngo.lat || !ngo.lon) return;
       const ngoLatLng = new L.LatLng(ngo.lat, ngo.lon);
       const dist = computeMinDistanceToRouteMeters(routeCoords, ngoLatLng);
-      if (dist < 1000) { // 1km radius for NGOs to be helpful
+      if (dist < 1500) { 
         ngoCount++;
-        safePoIs.push({
-          id: `ngo-${ngo.Name.replace(/\s+/g, '-')}`,
-          latitude: ngo.lat,
-          longitude: ngo.lon,
-          name: `${ngo.Name} (${ngo.Cause})`,
-          type: 'ngo',
-          is_ngo: true
-        });
+        ngoKDE += Math.exp(-dist / 500) * 2.0;
+        if (dist < 800) {
+          safePoIs.push({
+            id: `ngo-${ngo.Name.replace(/\s+/g, '-')}`, latitude: ngo.lat, longitude: ngo.lon,
+            name: `${ngo.Name} (${ngo.Cause})`, type: 'ngo', is_ngo: true
+          });
+        }
       }
     });
   }
   
-  // Weights Configuration
-  const wPolice = -2.5, wHospital = -1.5, wFireStation = -1.2, wCCTV = -0.8, wStreetLight = -0.5, wTransit = -0.5, wNGO = -2.0;
-  const wUnsafeReports = 3.0, wHistoricalCrimes = 2.0, wAbandoned = 1.5, wAlcohol = 1.2, wNight = 2.0;
-  const w0 = -2.0;
-  
-  // Calculate bounding box
+  // Bounding box for Overpass API
   let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
   routeCoords.forEach(c => {
     if (c.lat < minLat) minLat = c.lat;
@@ -308,11 +312,8 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
     if (c.lng > maxLng) maxLng = c.lng;
   });
   
-  // Add 0.005 padding (~500m) for overpass box
   minLat -= 0.005; maxLat += 0.005;
   minLng -= 0.005; maxLng += 0.005;
-  
-  // Snap to 0.02 degrees (~2.2km grid) to maximize cache hits
   const snap = 0.02;
   const gridMinLat = Math.floor(minLat / snap) * snap;
   const gridMaxLat = Math.ceil(maxLat / snap) * snap;
@@ -337,121 +338,141 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
     out body;
   `;
   
+  let policeKDE = 0, hospitalKDE = 0, transitKDE = 0, cctvKDE = 0, lightingKDE = 0;
+  let alcoholKDE = 0, abandonedKDE = 0;
+  let totalSafe = 0, totalRisk = 0;
+  
+  // To calculate Isolation Penalty
+  let maxDistanceToSafeHaven = 0;
+  
   try {
     let dataElements = preloadedElements;
     if (!dataElements) {
-      // 1. Try to fetch from Supabase Cache first
-      const { data: cacheData } = await supabase
-        .from('overpass_query_cache')
-        .select('response_json')
-        .eq('bbox_query', bbox)
-        .maybeSingle();
-
+      const { data: cacheData } = await supabase.from('overpass_query_cache').select('response_json').eq('bbox_query', bbox).maybeSingle();
       if (cacheData && cacheData.response_json) {
         dataElements = cacheData.response_json;
       } else {
-        // 2. Fetch from Overpass API
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
         const data = await fetchOverpassWithFallback(query, controller.signal);
         clearTimeout(timeoutId);
         dataElements = data.elements;
-        
-        // 3. Save to Supabase Cache in background
         if (dataElements) {
-          supabase.from('overpass_query_cache').insert({
-            bbox_query: bbox,
-            response_json: dataElements
-          }).then(({error}) => {
-            if (error && error.code !== '23505') console.error("Cache insert failed:", error); // Ignore unique violation
-          });
+          supabase.from('overpass_query_cache').insert({ bbox_query: bbox, response_json: dataElements })
+            .then(({error}) => { if (error && error.code !== '23505') console.error("Cache insert failed:", error); });
         }
       }
     }
     
-    let police = 0, hospital = 0, fireStation = 0, cctv = 0, streetLight = 0, transit = 0, abandoned = 0, bar = 0, pub = 0, alcohol = 0;
+    // Arrays to store safe haven coordinates for isolation check
+    const safeHavenCoords: L.LatLng[] = [];
     
-    dataElements.forEach((el: any) => {
-      const poiCoords = new L.LatLng(el.lat, el.lon);
-      const dist = computeMinDistanceToRouteMeters(routeCoords, poiCoords);
-      if (dist < 300) {
-        const name = el.tags?.name || 'Unknown Location';
-        const t = el.tags;
-        if (t.amenity === 'police') { police++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ' (Police)', type: 'police' }); }
-        else if (t.amenity === 'hospital') { hospital++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ' (Hospital)', type: 'hospital' }); }
-        else if (t.amenity === 'fire_station') { fireStation++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ' (Fire Station)', type: 'fire_station' }); }
-        else if (t.man_made === 'surveillance') { cctv++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: 'CCTV Camera', type: 'cctv' }); }
-        else if (t.highway === 'street_lamp') { streetLight++; }
-        else if (t.public_transport === 'station') { transit++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ' (Transit)', type: 'transit' }); }
-        else if (t.building === 'abandoned') { abandoned++; riskPoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ' (Abandoned)', type: 'abandoned', severity: 3 }); }
-        else if (t.amenity === 'bar' || t.amenity === 'pub' || t.shop === 'alcohol') {
-          if (t.amenity === 'bar') bar++;
-          else if (t.amenity === 'pub') pub++;
-          else if (t.shop === 'alcohol') alcohol++;
-          riskPoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name, type: t.amenity || t.shop, severity: 4 });
+    if (dataElements) {
+      dataElements.forEach((el: any) => {
+        const poiCoords = new L.LatLng(el.lat, el.lon);
+        const dist = computeMinDistanceToRouteMeters(routeCoords, poiCoords);
+        if (dist < 1000) { // KDE radius
+          const t = el.tags;
+          const name = t.name || 'Unknown Location';
+          
+          if (t.amenity === 'police') { 
+            policeKDE += Math.exp(-dist / 500) * 3.0; 
+            safeHavenCoords.push(poiCoords);
+            if(dist < 500) { totalSafe++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ' (Police)', type: 'police' }); }
+          } else if (t.amenity === 'hospital' || t.amenity === 'fire_station') { 
+            hospitalKDE += Math.exp(-dist / 500) * 2.0; 
+            safeHavenCoords.push(poiCoords);
+            if(dist < 500) { totalSafe++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ` (${t.amenity})`, type: t.amenity }); }
+          } else if (t.public_transport === 'station') { 
+            transitKDE += Math.exp(-dist / 400) * 1.5; 
+            safeHavenCoords.push(poiCoords);
+            if(dist < 400) { totalSafe++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ' (Transit)', type: 'transit' }); }
+          } else if (t.man_made === 'surveillance') { 
+            cctvKDE += Math.exp(-dist / 150) * 1.5; 
+            if(dist < 200) { totalSafe++; safePoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: 'CCTV Camera', type: 'cctv' }); }
+          } else if (t.highway === 'street_lamp') { 
+            lightingKDE += Math.exp(-dist / 100) * 1.0; 
+          } else if (t.building === 'abandoned') { 
+            abandonedKDE += Math.exp(-dist / 300) * 2.0; 
+            if(dist < 300) { totalRisk++; riskPoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name + ' (Abandoned)', type: 'abandoned', severity: 3 }); }
+          } else if (t.amenity === 'bar' || t.amenity === 'pub' || t.shop === 'alcohol') {
+            alcoholKDE += Math.exp(-dist / 300) * 1.5; 
+            if(dist < 300) { totalRisk++; riskPoIs.push({ id: el.id, latitude: el.lat, longitude: el.lon, name: name, type: t.amenity || t.shop, severity: 4 }); }
+          }
         }
-      }
-    });
+      });
+    }
 
-    // Log-Odds (z) using densities
-    const totalAlcohol = bar + pub + alcohol;
-    const z = w0 
-      + (police / lenKm) * wPolice
-      + (hospital / lenKm) * wHospital
-      + (fireStation / lenKm) * wFireStation
-      + (cctv / lenKm) * wCCTV
-      + (streetLight / lenKm) * wStreetLight
-      + (transit / lenKm) * wTransit
-      + (abandoned / lenKm) * wAbandoned
-      + (totalAlcohol / lenKm) * wAlcohol
-      + (unsafeReports / lenKm) * wUnsafeReports
-      + (historicalCrimeScore / lenKm) * wHistoricalCrimes
-      + (ngoCount / lenKm) * wNGO
-      + (isNight * wNight);
-    
-    // Sigmoid Activation Function (Probability of Danger)
-    const probability = 1 / (1 + Math.exp(-z));
-    
-    // Scale to 1-100 range
-    const score = Math.max(1, Math.min(100, Math.round(probability * 100)));
-    
-    const totalSafe = police + hospital + fireStation + cctv + transit + ngoCount;
-    const totalRisk = bar + pub + alcohol + abandoned + unsafeReports + crimeCount;
-    
-    let details = [];
-    if (totalSafe > 0) details.push(`${totalSafe} Safe Features`);
-    if (ngoCount > 0) details.push(`${ngoCount} NGOs`);
-    if (totalRisk > 0) details.push(`${totalRisk} Risk Factors`);
-    if (crimeCount > 0) details.push(`${crimeCount} Historical Crimes`);
-    if (details.length === 0) details.push('No major PoIs');
-    
-    return { score, details: details.join(', '), safePoIs, riskPoIs };
+    // 3. Calculate Isolation Penalty
+    // Sample the route every ~200m to find max distance to any safe haven
+    if (safeHavenCoords.length > 0) {
+       for(let i=0; i<routeCoords.length; i+=5) { // Assuming coords are dense, skip 5
+          const pt = routeCoords[i];
+          let minDistToHaven = Infinity;
+          safeHavenCoords.forEach(haven => {
+             const d = pt.distanceTo(haven);
+             if (d < minDistToHaven) minDistToHaven = d;
+          });
+          if (minDistToHaven > maxDistanceToSafeHaven) {
+             maxDistanceToSafeHaven = minDistToHaven;
+          }
+       }
+    } else {
+       maxDistanceToSafeHaven = 2000; // Cap at 2km if absolutely no safe havens
+    }
+
   } catch (err) {
-    console.warn("Failed to fetch environmental data (route likely too long)", err);
-    // Fallback to offline scoring using Time, Community Reports, Historical Crimes, and local NGOs
-    const z = w0 + (unsafeReports / lenKm) * wUnsafeReports + (historicalCrimeScore / lenKm) * wHistoricalCrimes + (ngoCount / lenKm) * wNGO + (isNight * wNight);
-    const probability = 1 / (1 + Math.exp(-z));
-    const score = Math.max(1, Math.min(100, Math.round(probability * 100)));
-    
-    // Generate some fallback mock Safe Havens so the map isn't completely empty for long routes
+    console.warn("Failed to fetch environmental data", err);
+    // Offline mode: keep KDE calculated from offline arrays
     if (routeCoords.length > 10) {
       const midPoint = routeCoords[Math.floor(routeCoords.length / 2)];
       safePoIs.push({ id: 'fallback-police', latitude: midPoint.lat + 0.002, longitude: midPoint.lng + 0.002, name: 'Local Police Station (Offline)', type: 'police' });
-      safePoIs.push({ id: 'fallback-hospital', latitude: midPoint.lat - 0.002, longitude: midPoint.lng - 0.002, name: 'City Hospital (Offline)', type: 'hospital' });
-      
-      const quarterPoint = routeCoords[Math.floor(routeCoords.length / 4)];
-      safePoIs.push({ id: 'fallback-cctv', latitude: quarterPoint.lat + 0.001, longitude: quarterPoint.lng + 0.001, name: 'Street CCTV (Offline)', type: 'cctv' });
     }
-    
-    let details = [];
-    if (safePoIs.length > 0) details.push(`${safePoIs.length} Safe Features`);
-    if (isNight) details.push('Night Hazard Active');
-    if (unsafeReports > 0) details.push(`${unsafeReports} Unsafe Zones`);
-    if (crimeCount > 0) details.push(`${crimeCount} Past Crimes Nearby`);
-    if (details.length === 0) details.push('Offline Mode (API Timeout)');
-    
-    return { score, details: details.join(', '), safePoIs, riskPoIs };
   }
+
+  // --- SRA Contextual Synergies ---
+  
+  // A. Lighting Factor (Modifies Crime and Abandoned Risk at night)
+  // High lighting KDE reduces night-time risk multipliers
+  const lightingFactor = isNight ? Math.max(0.5, 2.0 - (lightingKDE / Math.max(1, lenKm))) : 1.0;
+  
+  // B. Alcohol & Abandoned Synergy
+  // Bars are exponentially riskier at night. Abandoned buildings are riskier when poorly lit.
+  const dynamicAlcoholRisk = alcoholKDE * nightMultiplier;
+  const dynamicAbandonedRisk = abandonedKDE * lightingFactor;
+  
+  // C. Historical Crime Context
+  const dynamicCrimeRisk = historicalCrimeKDE * lightingFactor;
+  const dynamicReportRisk = unsafeKDE * nightMultiplier;
+
+  // D. Isolation Factor Penalty
+  // If the max distance to a safe haven is > 800m, apply a progressive penalty
+  const isolationPenalty = Math.max(0, (maxDistanceToSafeHaven - 800) / 400); // 1.0 penalty per 400m over 800m
+
+  // --- Final Advanced Algorithm Synthesis ---
+  const safetyDensity = (policeKDE * 1.5) + hospitalKDE + (transitKDE * 0.8) + (cctvKDE * 1.2) + (ngoKDE * 1.0);
+  const riskDensity = dynamicCrimeRisk + dynamicReportRisk + dynamicAlcoholRisk + dynamicAbandonedRisk + isolationPenalty;
+  
+  // Normalize per kilometer to make scores consistent across route lengths
+  const normalizedSafety = safetyDensity / lenKm;
+  const normalizedRisk = riskDensity / lenKm;
+  
+  // Base danger score calculation using a calibrated logistic function
+  // z represents the net danger log-odds.
+  // We subtract 1.5 as the baseline intercept (defaulting to safe).
+  const z = -1.5 + (normalizedRisk * 1.2) - (normalizedSafety * 0.8);
+  
+  const probability = 1 / (1 + Math.exp(-z));
+  const score = Math.max(1, Math.min(100, Math.round(probability * 100)));
+  
+  let details = [];
+  if (totalSafe > 0) details.push(`${totalSafe} Safe Features`);
+  if (totalRisk > 0) details.push(`${totalRisk} Risk Zones`);
+  if (isolationPenalty > 1.0) details.push(`High Isolation Area`);
+  if (isNight && lightingKDE < lenKm * 2) details.push(`Poor Lighting at Night`);
+  if (details.length === 0) details.push('Average Safety Level');
+  
+  return { score, details: details.join(', '), safePoIs, riskPoIs };
 }
 
 export default function MapNavigation() {
