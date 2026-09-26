@@ -34,10 +34,22 @@ type GeoSuggestion = {
 };
 
 async function fetchGeocode(query: string, signal?: AbortSignal): Promise<GeoSuggestion[]> {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { signal, headers: { 'Accept-Language': 'en' } });
+  const token = import.meta.env.VITE_MAPBOX_TOKEN;
+  if (!token) {
+    console.error("Mapbox token is missing for geocoding.");
+    return [];
+  }
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&autocomplete=true&limit=6`;
+  const res = await fetch(url, { signal });
   if (!res.ok) throw new Error('Failed to fetch geocoding results');
-  return res.json();
+  const data = await res.json();
+  
+  return data.features.map((f: any) => ({
+    display_name: f.place_name,
+    lat: f.center[1].toString(),
+    lon: f.center[0].toString(),
+    type: f.place_type?.[0]
+  }));
 }
 
 // MultiRouter for fetching diverse alternatives by injecting offset waypoints
