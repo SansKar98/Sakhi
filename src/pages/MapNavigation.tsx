@@ -319,6 +319,7 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
       node["amenity"="police"](${bbox});
       node["amenity"="hospital"](${bbox});
       node["amenity"="fire_station"](${bbox});
+      node["highway"="street_lamp"](${bbox});
       node["man_made"="surveillance"](${bbox});
       node["public_transport"="station"](${bbox});
       node["building"="abandoned"](${bbox});
@@ -1202,6 +1203,7 @@ export default function MapNavigation() {
                         node["amenity"="police"](${bbox});
                         node["amenity"="hospital"](${bbox});
                         node["amenity"="fire_station"](${bbox});
+                        node["highway"="street_lamp"](${bbox});
                         node["man_made"="surveillance"](${bbox});
                         node["public_transport"="station"](${bbox});
                         node["building"="abandoned"](${bbox});
