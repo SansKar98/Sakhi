@@ -312,7 +312,14 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
   minLat -= 0.005; maxLat += 0.005;
   minLng -= 0.005; maxLng += 0.005;
   
-  const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
+  // Snap to 0.02 degrees (~2.2km grid) to maximize cache hits
+  const snap = 0.02;
+  const gridMinLat = Math.floor(minLat / snap) * snap;
+  const gridMaxLat = Math.ceil(maxLat / snap) * snap;
+  const gridMinLng = Math.floor(minLng / snap) * snap;
+  const gridMaxLng = Math.ceil(maxLng / snap) * snap;
+  
+  const bbox = `${gridMinLat.toFixed(3)},${gridMinLng.toFixed(3)},${gridMaxLat.toFixed(3)},${gridMaxLng.toFixed(3)}`;
   const query = `
     [out:json][timeout:60];
     (
@@ -333,11 +340,33 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
   try {
     let dataElements = preloadedElements;
     if (!dataElements) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-      const data = await fetchOverpassWithFallback(query, controller.signal);
-      clearTimeout(timeoutId);
-      dataElements = data.elements;
+      // 1. Try to fetch from Supabase Cache first
+      const { data: cacheData } = await supabase
+        .from('overpass_query_cache')
+        .select('response_json')
+        .eq('bbox_query', bbox)
+        .maybeSingle();
+
+      if (cacheData && cacheData.response_json) {
+        dataElements = cacheData.response_json;
+      } else {
+        // 2. Fetch from Overpass API
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const data = await fetchOverpassWithFallback(query, controller.signal);
+        clearTimeout(timeoutId);
+        dataElements = data.elements;
+        
+        // 3. Save to Supabase Cache in background
+        if (dataElements) {
+          supabase.from('overpass_query_cache').insert({
+            bbox_query: bbox,
+            response_json: dataElements
+          }).then(({error}) => {
+            if (error && error.code !== '23505') console.error("Cache insert failed:", error); // Ignore unique violation
+          });
+        }
+      }
     }
     
     let police = 0, hospital = 0, fireStation = 0, cctv = 0, streetLight = 0, transit = 0, abandoned = 0, bar = 0, pub = 0, alcohol = 0;
@@ -1196,7 +1225,14 @@ export default function MapNavigation() {
                     minLat -= 0.005; maxLat += 0.005;
                     minLng -= 0.005; maxLng += 0.005;
                     
-                    const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
+                    // Snap to 0.02 degrees (~2.2km grid) to maximize cache hits
+                    const snap = 0.02;
+                    const gridMinLat = Math.floor(minLat / snap) * snap;
+                    const gridMaxLat = Math.ceil(maxLat / snap) * snap;
+                    const gridMinLng = Math.floor(minLng / snap) * snap;
+                    const gridMaxLng = Math.ceil(maxLng / snap) * snap;
+                    
+                    const bbox = `${gridMinLat.toFixed(3)},${gridMinLng.toFixed(3)},${gridMaxLat.toFixed(3)},${gridMaxLng.toFixed(3)}`;
                     const query = `
                       [out:json][timeout:60];
                       (
@@ -1215,12 +1251,33 @@ export default function MapNavigation() {
                     `;
                     
                     try {
-                      const controller = new AbortController();
-                      const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased timeout to 60s
-                      const json = await fetchOverpassWithFallback(query, controller.signal);
-                      clearTimeout(timeoutId);
-                      if (json) {
-                        globalElements = json.elements;
+                      // 1. Try to fetch from Supabase Cache first
+                      const { data: cacheData } = await supabase
+                        .from('overpass_query_cache')
+                        .select('response_json')
+                        .eq('bbox_query', bbox)
+                        .maybeSingle();
+                        
+                      if (cacheData && cacheData.response_json) {
+                        globalElements = cacheData.response_json;
+                      } else {
+                        // 2. Fetch from Overpass API
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased timeout to 60s
+                        const json = await fetchOverpassWithFallback(query, controller.signal);
+                        clearTimeout(timeoutId);
+                        
+                        if (json && json.elements) {
+                          globalElements = json.elements;
+                          
+                          // 3. Save to Supabase Cache in background
+                          supabase.from('overpass_query_cache').insert({
+                            bbox_query: bbox,
+                            response_json: json.elements
+                          }).then(({error}) => {
+                            if (error && error.code !== '23505') console.error("Global cache insert failed:", error);
+                          });
+                        }
                       }
                     } catch (err) {
                       console.warn("Global Overpass pre-fetch failed", err);
