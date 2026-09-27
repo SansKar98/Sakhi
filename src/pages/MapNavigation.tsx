@@ -126,7 +126,7 @@ const RoutingEngine = ({ start, end, show, onRouteFound }: any) => {
       waypoints: [start, end],
       router: createMultiRouter({
         serviceUrl: 'https://api.mapbox.com/directions/v5',
-        profile: 'mapbox/driving-traffic',
+        profile: 'mapbox/driving',
         useHints: false,
         routingOptions: {
           alternatives: true
