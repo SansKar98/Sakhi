@@ -126,7 +126,7 @@ const RoutingEngine = ({ start, end, show, onRouteFound }: any) => {
       waypoints: [start, end],
       router: createMultiRouter({
         serviceUrl: 'https://api.mapbox.com/directions/v5',
-        profile: 'mapbox/driving',
+        profile: 'mapbox/driving-traffic',
         useHints: false,
         routingOptions: {
           alternatives: true
@@ -304,7 +304,7 @@ async function fetchOverpassWithFallback(query: string, globalSignal: AbortSigna
   throw lastError;
 }
 
-async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: number, dangerZones: any[], preloadedElements: any[] | null = null) {
+async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: number, dangerZones: any[], preloadedElements: any[] | null = null, routeDurationSeconds: number = 0) {
   if (!routeCoords || routeCoords.length === 0) return { score: 0, details: 'No route' };
   
   const lenKm = Math.max(0.1, routeLengthKm);
@@ -479,23 +479,40 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
       });
     }
 
-    // 3. Calculate Isolation Penalty
-    // Sample the route every ~200m to find max distance to any safe haven
-    if (safeHavenCoords.length > 0) {
-       for(let i=0; i<routeCoords.length; i+=5) { // Assuming coords are dense, skip 5
-          const pt = routeCoords[i];
-          let minDistToHaven = Infinity;
-          safeHavenCoords.forEach(haven => {
-             const d = pt.distanceTo(haven);
-             if (d < minDistToHaven) minDistToHaven = d;
-          });
-          if (minDistToHaven > maxDistanceToSafeHaven) {
-             maxDistanceToSafeHaven = minDistToHaven;
-          }
-       }
-    } else {
-       maxDistanceToSafeHaven = 2000; // Cap at 2km if absolutely no safe havens
-    }
+  
+  // 3. Calculate Isolation Penalty
+  // Sample the route every ~200m to find max distance to any safe haven
+  if (safeHavenCoords.length > 0) {
+     for(let i=0; i<routeCoords.length; i+=5) { // Assuming coords are dense, skip 5
+        const pt = routeCoords[i];
+        let minDistToHaven = Infinity;
+        safeHavenCoords.forEach(haven => {
+           const d = pt.distanceTo(haven);
+           if (d < minDistToHaven) minDistToHaven = d;
+        });
+        if (minDistToHaven > maxDistanceToSafeHaven) {
+           maxDistanceToSafeHaven = minDistToHaven;
+        }
+     }
+  } else {
+     maxDistanceToSafeHaven = 2000; // Cap at 2km if absolutely no safe havens
+  }
+
+  // --- LIVE TRAFFIC & CROWD DENSITY (Proxy via Congestion) ---
+  let trafficDensityScore = 0;
+  let isCongested = false;
+  if (routeDurationSeconds > 0 && lenKm > 0) {
+     const avgSpeedKmh = lenKm / (routeDurationSeconds / 3600);
+     if (avgSpeedKmh < 20) { // Severe traffic / highly crowded area
+        isCongested = true;
+        trafficDensityScore = isNight ? -1.0 : 3.0; // At night, traffic jam is slightly unsafe. By day, it means highly populated/safe.
+     } else if (avgSpeedKmh < 40) {
+        trafficDensityScore = isNight ? 0.0 : 1.5;
+     } else {
+        trafficDensityScore = isNight ? 1.0 : -0.5; // Empty roads are riskier
+     }
+  }
+
 
   } catch (err) {
     console.warn("Failed to fetch environmental data", err);
@@ -526,7 +543,7 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
   const isolationPenalty = Math.max(0, (maxDistanceToSafeHaven - 800) / 400); // 1.0 penalty per 400m over 800m
 
   // --- Final Advanced Algorithm Synthesis ---
-  const safetyDensity = (policeKDE * 1.5) + hospitalKDE + (transitKDE * 0.8) + (cctvKDE * 1.2) + (ngoKDE * 1.0);
+  const safetyDensity = (policeKDE * 1.5) + hospitalKDE + (transitKDE * 0.8) + (cctvKDE * 1.2) + (ngoKDE * 1.0) + (trafficDensityScore * 0.5);
   const riskDensity = dynamicCrimeRisk + dynamicReportRisk + dynamicAlcoholRisk + dynamicAbandonedRisk + isolationPenalty;
   
   // Normalize per kilometer to make scores consistent across route lengths
@@ -546,6 +563,7 @@ async function fetchEnvironmentalData(routeCoords: L.LatLng[], routeLengthKm: nu
   if (totalRisk > 0) details.push(`${totalRisk} Risk Zones`);
   if (isolationPenalty > 1.0) details.push(`High Isolation Area`);
   if (isNight && lightingKDE < lenKm * 2) details.push(`Poor Lighting at Night`);
+  if (isCongested) details.push(`Live Crowd/Traffic Density`);
   if (details.length === 0) details.push('Average Safety Level');
   
   return { score, details: details.join(', '), safePoIs, riskPoIs };
@@ -1396,10 +1414,10 @@ export default function MapNavigation() {
                       
                       // If globalElements failed, fallback to individual retries
                       if (globalElements) {
-                         envData = await fetchEnvironmentalData(rt.coordinates || [], routeLengthKm, mockZones, globalElements);
+                         envData = await fetchEnvironmentalData(rt.coordinates || [], routeLengthKm, mockZones, globalElements, rt.summary?.totalTime || 0);
                       } else {
                         for (let retry = 0; retry < 3; retry++) {
-                          envData = await fetchEnvironmentalData(rt.coordinates || [], routeLengthKm, mockZones);
+                          envData = await fetchEnvironmentalData(rt.coordinates || [], routeLengthKm, mockZones, null, rt.summary?.totalTime || 0);
                           if (!envData.details.includes('Offline Mode')) break;
                           if (retry < 2) await new Promise(resolve => setTimeout(resolve, 3000));
                         }
